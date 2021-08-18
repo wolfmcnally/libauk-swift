@@ -1,6 +1,6 @@
 //
-//  AutonomyKeychain.swift
-//  AutonomyAccountVault
+//  Keychain.swift
+//  LibAuk
 //
 //  Created by Ho Hien on 8/6/21.
 //  Copyright © 2021 Bitmark Inc. All rights reserved.
@@ -8,7 +8,7 @@
 
 import Foundation
 
-protocol AutonomyKeychainProtocol {
+protocol KeychainProtocol {
     @discardableResult
     func set(_ data: Data, forKey: String, isSync: Bool) -> Bool
     func getData(_ key: String, isSync: Bool) -> Data?
@@ -16,7 +16,7 @@ protocol AutonomyKeychainProtocol {
     func remove(key: String, isSync: Bool) -> Bool
 }
 
-class AutonomyKeychain: AutonomyKeychainProtocol {
+class Keychain: KeychainProtocol {
     
     let prefix: String?
     
@@ -31,7 +31,7 @@ class AutonomyKeychain: AutonomyKeychainProtocol {
             kSecClass as String: kSecClassGenericPassword as String,
             kSecAttrSynchronizable as String: syncAttr!,
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
-            kSecAttrAccessGroup as String: AutonomyAccountVault.shared.keyChainGroup,
+            kSecAttrAccessGroup as String: LibAuk.shared.keyChainGroup,
             kSecAttrAccount as String: buildKeyAttr(prefix: prefix, key: forKey),
             kSecValueData as String: data
         ] as [String: Any]
@@ -55,7 +55,7 @@ class AutonomyKeychain: AutonomyKeychainProtocol {
             kSecAttrAccount as String: buildKeyAttr(prefix: prefix, key: key),
             kSecReturnData as String: kCFBooleanTrue!,
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
-            kSecAttrAccessGroup as String: AutonomyAccountVault.shared.keyChainGroup,
+            kSecAttrAccessGroup as String: LibAuk.shared.keyChainGroup,
             kSecMatchLimit as String: kSecMatchLimitOne
         ] as [String: Any]
 
@@ -77,7 +77,7 @@ class AutonomyKeychain: AutonomyKeychainProtocol {
             kSecClass as String: kSecClassGenericPassword as String,
             kSecAttrSynchronizable as String: syncAttr!,
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
-            kSecAttrAccessGroup as String: AutonomyAccountVault.shared.keyChainGroup,
+            kSecAttrAccessGroup as String: LibAuk.shared.keyChainGroup,
             kSecAttrAccount as String: buildKeyAttr(prefix: prefix, key: key)
         ] as [String: Any]
 

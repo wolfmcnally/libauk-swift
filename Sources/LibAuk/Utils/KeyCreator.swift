@@ -39,7 +39,7 @@ class KeyCreator {
         }
     }
     
-    static func createEncryptedWords(keychain: AutonomyKeychainProtocol = AutonomyKeychain(), completion: @escaping ((mnemonic: Data?, error: Bool)) -> Void) {
+    static func createEncryptedWords(keychain: KeychainProtocol = Keychain(), completion: @escaping ((mnemonic: Data?, error: Bool)) -> Void) {
         Self.createMnemonicWords { (mnemonic, _) in
             guard let mnemonic = mnemonic, !mnemonic.isEmpty, let encryptedWords = Encryption.encrypt(mnemonic.utf8, keychain: keychain) else {
                 completion((nil, false))

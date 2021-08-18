@@ -27,13 +27,13 @@ enum Encryption {
         P256.Signing.PrivateKey().rawRepresentation
     }
     
-    static func encrypt(_ data: Data, keychain: AutonomyKeychainProtocol = AutonomyKeychain()) -> Data? {
+    static func encrypt(_ data: Data, keychain: KeychainProtocol = Keychain()) -> Data? {
         guard let key = keychain.getData(Constant.KeychainKey.encryptionPrivateKey, isSync: true) else { return nil }
         
         return try? ChaChaPoly.seal(data, using: SymmetricKey(data: key)).combined
     }
     
-    static func decrypt(_ data: Data, keychain: AutonomyKeychainProtocol = AutonomyKeychain()) -> Data? {
+    static func decrypt(_ data: Data, keychain: KeychainProtocol = Keychain()) -> Data? {
         guard let key = keychain.getData(Constant.KeychainKey.encryptionPrivateKey, isSync: true),
             let box = try? ChaChaPoly.SealedBox.init(combined: data) else { return nil }
                 

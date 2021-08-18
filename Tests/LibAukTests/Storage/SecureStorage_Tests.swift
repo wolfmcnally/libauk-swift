@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  SecureStorage_Tests.swift
 //  
 //
 //  Created by Ho Hien on 8/10/21.
@@ -10,19 +10,19 @@ import XCTest
 import LibWally
 import Combine
 import Web3
-@testable import AutonomyAccountVault
+@testable import LibAuk
 
-class AutonomySecureStorage_Tests: XCTestCase {
+class SecureStorage_Tests: XCTestCase {
     
     private var cancelBag: Set<AnyCancellable>!
-    private var storage: AutonomySecureStorage!
-    private var keychain: AutonomyKeychainMock!
+    private var storage: SecureStorage!
+    private var keychain: KeychainMock!
 
     override func setUpWithError() throws {
         cancelBag = []
-        keychain = AutonomyKeychainMock()
-        storage = AutonomySecureStorage(keychain: keychain)
-        AutonomyAccountVault.create(keyChainGroup: "com.bitmark.autonomy")
+        keychain = KeychainMock()
+        storage = SecureStorage(keychain: keychain)
+        LibAuk.create(keyChainGroup: "com.bitmark.autonomy")
         keychain.set(Encryption.privateKey(), forKey: Constant.KeychainKey.encryptionPrivateKey, isSync: true)
     }
 

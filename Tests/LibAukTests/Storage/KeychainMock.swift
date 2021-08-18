@@ -1,5 +1,5 @@
 //
-//  AutonomyKeychainMock.swift
+//  KeychainMock.swift
 //
 //
 //  Created by Ho Hien on 8/10/21.
@@ -7,9 +7,9 @@
 //
 
 import Foundation
-@testable import AutonomyAccountVault
+@testable import LibAuk
 
-class AutonomyKeychainMock: AutonomyKeychainProtocol {
+class KeychainMock: KeychainProtocol {
 
     var values = [String: (Data, Bool)]()
     
