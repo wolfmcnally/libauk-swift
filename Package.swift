@@ -4,13 +4,13 @@
 import PackageDescription
 
 let package = Package(
-    name: "AutonomyAccountVault",
+    name: "LibAuk",
     platforms: [.macOS(.v10_15), .iOS(.v13)],
     products: [
         // Products define the executables and libraries a package produces, and make them visible to other packages.
         .library(
-            name: "AutonomyAccountVault",
-            targets: ["AutonomyAccountVault"]),
+            name: "LibAuk",
+            targets: ["LibAuk"]),
     ],
     dependencies: [
         .package(name: "Web3", url: "https://github.com/bitmark-inc/Web3.swift.git", .branch("master")),
@@ -22,7 +22,7 @@ let package = Package(
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
         // Targets can depend on other targets in this package, and on products in packages this package depends on.
         .target(
-            name: "AutonomyAccountVault",
+            name: "LibAuk",
             dependencies: [
                 .target(name: "LibWally"),
                 .product(name: "Web3", package: "Web3"),
@@ -31,8 +31,8 @@ let package = Package(
                 .product(name: "URKit", package: "URKit"),
             ]),
         .testTarget(
-            name: "AutonomyAccountVaultTests",
-            dependencies: ["AutonomyAccountVault"]),
+            name: "LibAukTests",
+            dependencies: ["LibAuk"]),
         .binaryTarget(
             name: "LibWally",
             path: "Frameworks/LibWally.xcframework")

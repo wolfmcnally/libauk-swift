@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  LibAukError.swift
 //  
 //
 //  Created by Ho Hien on 8/9/21.
@@ -7,7 +7,8 @@
 
 import Foundation
 
-public enum AutonomyAccountError: Error {
+public enum LibAukError: Error {
+    case initEncryptionError
     case keyCreationError
     case emptyKey
     case keyCreationExistingError(key: String)
@@ -15,7 +16,7 @@ public enum AutonomyAccountError: Error {
     case other(reason: String)
 }
 
-extension AutonomyAccountError: LocalizedError {
+extension LibAukError: LocalizedError {
     public var errorDescription: String? {
         errorMessage
     }
@@ -30,6 +31,8 @@ extension AutonomyAccountError: LocalizedError {
 
     var errorMessage: String {
         switch self {
+        case .initEncryptionError:
+            return "init encryption error"
         case .keyCreationError:
             return "create key error"
         case .emptyKey:

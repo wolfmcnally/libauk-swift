@@ -1,5 +1,5 @@
 //
-//  AutonomySecureStorage.swift
+//  SecureStorage.swift
 //  
 //
 //  Created by Ho Hien on 8/9/21.
@@ -11,31 +11,31 @@ import LibWally
 import CryptoKit
 import Web3
 
-public protocol AutonomySecureStorageProtocol {
+public protocol SecureStorageProtocol {
     func createKey() -> AnyPublisher<Void, Error>
     func getETHAddress() -> AnyPublisher<String, Error>
     func signTransaction(transaction: EthereumTransaction, chainId: EthereumQuantity) -> AnyPublisher<EthereumSignedTransaction, Error>
     func exportSeed() -> AnyPublisher<Seed, Error>
 }
 
-class AutonomySecureStorage: AutonomySecureStorageProtocol {
+class SecureStorage: SecureStorageProtocol {
     
-    private let keychain: AutonomyKeychainProtocol
+    private let keychain: KeychainProtocol
     
-    init(keychain: AutonomyKeychainProtocol = AutonomyKeychain()) {
+    init(keychain: KeychainProtocol = Keychain()) {
         self.keychain = keychain
     }
     
     func createKey() -> AnyPublisher<Void, Error> {
         Future<Data, Error> { promise in
             guard self.keychain.getData(Constant.KeychainKey.ethInfoKey, isSync: true) == nil else {
-                promise(.failure(AutonomyAccountError.keyCreationExistingError(key: "createETHKey")))
+                promise(.failure(LibAukError.keyCreationExistingError(key: "createETHKey")))
                 return
             }
             
             KeyCreator.createEncryptedWords(keychain: self.keychain) { (encryptedWords, error) in
                 guard let encryptedWords = encryptedWords else {
-                    promise(.failure(AutonomyAccountError.keyCreationError))
+                    promise(.failure(LibAukError.keyCreationError))
                     return
                 }
                 
@@ -64,7 +64,7 @@ class AutonomySecureStorage: AutonomySecureStorageProtocol {
         Future<String, Error> { promise in
             guard let infoData = self.keychain.getData(Constant.KeychainKey.ethInfoKey, isSync: true),
                   let keyInfo = try? JSONDecoder().decode(KeyInfo.self, from: infoData) else {
-                promise(.failure(AutonomyAccountError.emptyKey))
+                promise(.failure(LibAukError.emptyKey))
                 return
             }
             
@@ -77,7 +77,7 @@ class AutonomySecureStorage: AutonomySecureStorageProtocol {
         Future<(String, String), Error> { promise in
             guard let identityData = self.keychain.getData(Constant.KeychainKey.ethIdentityKey, isSync: true),
                   let keyIdentity = try? JSONDecoder().decode(KeyIdentity.self, from: identityData) else {
-                promise(.failure(AutonomyAccountError.emptyKey))
+                promise(.failure(LibAukError.emptyKey))
                 return
             }
             
@@ -85,10 +85,10 @@ class AutonomySecureStorage: AutonomySecureStorageProtocol {
                 if let words = String(data: decryptedData, encoding: .utf8) {
                     promise(.success((words, keyIdentity.passphrase)))
                 } else {
-                    promise(.failure(AutonomyAccountError.other(reason: "Convert data error")))
+                    promise(.failure(LibAukError.other(reason: "Convert data error")))
                 }
             } else {
-                promise(.failure(AutonomyAccountError.other(reason: "Couldn't decrypt data")))
+                promise(.failure(LibAukError.other(reason: "Couldn't decrypt data")))
             }
         }
         .tryMap { [unowned self] (words, passphrase) in
@@ -106,7 +106,7 @@ class AutonomySecureStorage: AutonomySecureStorageProtocol {
                   let keyIdentity = try? JSONDecoder().decode(KeyIdentity.self, from: identityData),
                   let infoData = self.keychain.getData(Constant.KeychainKey.ethInfoKey, isSync: true),
                   let keyInfo = try? JSONDecoder().decode(KeyInfo.self, from: infoData) else {
-                promise(.failure(AutonomyAccountError.emptyKey))
+                promise(.failure(LibAukError.emptyKey))
                 return
             }
             
@@ -115,10 +115,10 @@ class AutonomySecureStorage: AutonomySecureStorageProtocol {
                    let mnemonic = try? BIP39Mnemonic(words: words) {
                     promise(.success(Seed(data: mnemonic.entropy.data, creationDate: keyInfo.creationDate, name: keyInfo.fingerprint)))
                 } else {
-                    promise(.failure(AutonomyAccountError.other(reason: "Convert data error")))
+                    promise(.failure(LibAukError.other(reason: "Convert data error")))
                 }
             } else {
-                promise(.failure(AutonomyAccountError.other(reason: "Couldn't decrypt data")))
+                promise(.failure(LibAukError.other(reason: "Couldn't decrypt data")))
             }
         }
         .eraseToAnyPublisher()
@@ -142,7 +142,7 @@ class AutonomySecureStorage: AutonomySecureStorageProtocol {
         let account = try masterKey.derive(using: derivationPath)
         
         guard let privateKey = account.privKey?.data.bytes else {
-            throw AutonomyAccountError.keyDerivationError
+            throw LibAukError.keyDerivationError
         }
         
         return try EthereumPrivateKey(privateKey)
