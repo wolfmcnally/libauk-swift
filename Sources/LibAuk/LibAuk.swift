@@ -9,9 +9,9 @@ import LibWally
 
 public class LibAuk {
     
-    static var shared: LibAuk!
+    public static var shared: LibAuk!
     
-    static func create(keyChainGroup: String) {
+    public static func create(keyChainGroup: String) {
         guard Self.shared == nil else {
             return
         }
