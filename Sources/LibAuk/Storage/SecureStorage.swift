@@ -13,6 +13,7 @@ import Web3
 
 public protocol SecureStorageProtocol {
     func createKey() -> AnyPublisher<Void, Error>
+    func isWalletCreated() -> AnyPublisher<Bool, Error>
     func getETHAddress() -> AnyPublisher<String, Error>
     func signTransaction(transaction: EthereumTransaction, chainId: EthereumQuantity) -> AnyPublisher<EthereumSignedTransaction, Error>
     func exportSeed() -> AnyPublisher<Seed, Error>
@@ -56,6 +57,19 @@ class SecureStorage: SecureStorageProtocol {
         .tryMap { try BIP39Mnemonic(words: $0) }
         .tryMap { [unowned self] in
             try self.saveKeyInfo(mnemonic: $0)
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    func isWalletCreated() -> AnyPublisher<Bool, Error> {
+        Future<Bool, Error> { promise in
+            guard let infoData = self.keychain.getData(Constant.KeychainKey.ethInfoKey, isSync: true),
+                  let keyInfo = try? JSONDecoder().decode(KeyInfo.self, from: infoData) else {
+                promise(.success(false))
+                return
+            }
+            
+            promise(.success(true))
         }
         .eraseToAnyPublisher()
     }
