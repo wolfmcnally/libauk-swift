@@ -15,6 +15,7 @@ public protocol SecureStorageProtocol {
     func createKey() -> AnyPublisher<Void, Error>
     func isWalletCreated() -> AnyPublisher<Bool, Error>
     func getETHAddress() -> AnyPublisher<String, Error>
+    func sign(message: Bytes) -> AnyPublisher<(v: UInt, r: Bytes, s: Bytes), Error>
     func signTransaction(transaction: EthereumTransaction, chainId: EthereumQuantity) -> AnyPublisher<EthereumSignedTransaction, Error>
     func exportSeed() -> AnyPublisher<Seed, Error>
 }
@@ -64,7 +65,7 @@ class SecureStorage: SecureStorageProtocol {
     func isWalletCreated() -> AnyPublisher<Bool, Error> {
         Future<Bool, Error> { promise in
             guard let infoData = self.keychain.getData(Constant.KeychainKey.ethInfoKey, isSync: true),
-                  let keyInfo = try? JSONDecoder().decode(KeyInfo.self, from: infoData) else {
+                  (try? JSONDecoder().decode(KeyInfo.self, from: infoData)) != nil else {
                 promise(.success(false))
                 return
             }
@@ -83,6 +84,33 @@ class SecureStorage: SecureStorageProtocol {
             }
             
             promise(.success(keyInfo.ethAddress))
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    func sign(message: Bytes) -> AnyPublisher<(v: UInt, r: Bytes, s: Bytes), Error> {
+        Future<(String, String), Error> { promise in
+            guard let identityData = self.keychain.getData(Constant.KeychainKey.ethIdentityKey, isSync: true),
+                  let keyIdentity = try? JSONDecoder().decode(KeyIdentity.self, from: identityData) else {
+                promise(.failure(LibAukError.emptyKey))
+                return
+            }
+            
+            if let decryptedData = Encryption.decrypt(keyIdentity.words, keychain: self.keychain) {
+                if let words = String(data: decryptedData, encoding: .utf8) {
+                    promise(.success((words, keyIdentity.passphrase)))
+                } else {
+                    promise(.failure(LibAukError.other(reason: "Convert data error")))
+                }
+            } else {
+                promise(.failure(LibAukError.other(reason: "Couldn't decrypt data")))
+            }
+        }
+        .tryMap { [unowned self] (words, passphrase) in
+            let mnemonic = try BIP39Mnemonic(words: words)
+            let ethPrivateKey = try self.getEthereumPrivateKey(mnemonic: mnemonic, passphrase: passphrase)
+            
+            return try ethPrivateKey.sign(message: message)
         }
         .eraseToAnyPublisher()
     }
