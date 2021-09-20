@@ -55,6 +55,30 @@ class SecureStorage_Tests: XCTestCase {
         waitForExpectations(timeout: 1, handler: nil)
     }
     
+    func testIsWalletCreatedSuccessfully() throws {
+        let mnemomic = try BIP39Mnemonic(words: "daring mix cradle palm crowd sea observe whisper rubber either uncle oak")
+        try storage.saveKeyInfo(mnemonic: mnemomic)
+        
+        let receivedExpectation = expectation(description: "all values received")
+
+        storage.isWalletCreated()
+            .sink(receiveCompletion: { completion in
+                switch completion {
+                case .finished:
+                    receivedExpectation.fulfill()
+                case .failure(let error):
+                    XCTFail("IsWalletCreated failed \(error)")
+                }
+
+            }, receiveValue: { isCreated in
+                XCTAssertTrue(isCreated)
+            })
+            .store(in: &cancelBag)
+
+        waitForExpectations(timeout: 1, handler: nil)
+    }
+    
+    
     func testGetETHAddressSuccessfully() throws {
         let mnemomic = try BIP39Mnemonic(words: "daring mix cradle palm crowd sea observe whisper rubber either uncle oak")
         try storage.saveKeyInfo(mnemonic: mnemomic)
@@ -72,6 +96,34 @@ class SecureStorage_Tests: XCTestCase {
 
             }, receiveValue: { address in
                 XCTAssertEqual(address, "0xA00cbE6a45102135A210F231901faA6c05D51465")
+            })
+            .store(in: &cancelBag)
+
+        waitForExpectations(timeout: 1, handler: nil)
+    }
+    
+    func testSignMessageSuccessfully() throws {
+        let words = "daring mix cradle palm crowd sea observe whisper rubber either uncle oak"
+        let keyIdentity = KeyIdentity(words: Encryption.encrypt(words.utf8, keychain: keychain)!, passphrase: "")
+        let keyIdentityData = try JSONEncoder().encode(keyIdentity)
+        keychain.set(keyIdentityData, forKey: Constant.KeychainKey.ethIdentityKey, isSync: true)
+        
+        let message = "hello"
+        let receivedExpectation = expectation(description: "all values received")
+        
+        storage.sign(message: message.bytes)
+            .sink(receiveCompletion: { completion in
+                switch completion {
+                case .finished:
+                    receivedExpectation.fulfill()
+                case .failure(let error):
+                    XCTFail("sign messge failed \(error)")
+                }
+
+            }, receiveValue: { (v, r, s) in
+                XCTAssertEqual(v, 1)
+                XCTAssertEqual(Data(r).hexString, "87996ffe97e732c1e20463a5858a03c9ca4084117dfbc95c5f7dd79c766ef7f9")
+                XCTAssertEqual(Data(s).hexString, "3cbc5e6025e1c5a1b49406c59c6e64c81af18d0b9b122bf5b227bab7af3e0aa8")
             })
             .store(in: &cancelBag)
 
