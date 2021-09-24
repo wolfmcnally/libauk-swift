@@ -198,4 +198,29 @@ class SecureStorage_Tests: XCTestCase {
 
         waitForExpectations(timeout: 1, handler: nil)
     }
+
+    func testExportMnemonicWordsSuccessfully() throws {
+        let words = "daring mix cradle palm crowd sea observe whisper rubber either uncle oak"
+        let keyIdentity = KeyIdentity(words: Encryption.encrypt(words.utf8, keychain: keychain)!, passphrase: "")
+        let keyIdentityData = try JSONEncoder().encode(keyIdentity)
+        keychain.set(keyIdentityData, forKey: Constant.KeychainKey.ethIdentityKey, isSync: true)
+
+        let receivedExpectation = expectation(description: "all values received")
+
+        storage.exportMnemonicWords()
+            .sink(receiveCompletion: { completion in
+                switch completion {
+                case .finished:
+                    receivedExpectation.fulfill()
+                case .failure(let error):
+                    XCTFail("exportMnemonicWords failed \(error)")
+                }
+
+            }, receiveValue: { mnemonicWords in
+                XCTAssertEqual(mnemonicWords.joined(separator: " "), "daring mix cradle palm crowd sea observe whisper rubber either uncle oak")
+            })
+            .store(in: &cancelBag)
+
+        waitForExpectations(timeout: 1, handler: nil)
+    }
 }
