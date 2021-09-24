@@ -18,6 +18,7 @@ public protocol SecureStorageProtocol {
     func sign(message: Bytes) -> AnyPublisher<(v: UInt, r: Bytes, s: Bytes), Error>
     func signTransaction(transaction: EthereumTransaction, chainId: EthereumQuantity) -> AnyPublisher<EthereumSignedTransaction, Error>
     func exportSeed() -> AnyPublisher<Seed, Error>
+    func exportMnemonicWords() -> AnyPublisher<[String], Error>
 }
 
 class SecureStorage: SecureStorageProtocol {
@@ -156,6 +157,28 @@ class SecureStorage: SecureStorageProtocol {
                 if let words = String(data: decryptedData, encoding: .utf8),
                    let mnemonic = try? BIP39Mnemonic(words: words) {
                     promise(.success(Seed(data: mnemonic.entropy.data, creationDate: keyInfo.creationDate, name: keyInfo.fingerprint)))
+                } else {
+                    promise(.failure(LibAukError.other(reason: "Convert data error")))
+                }
+            } else {
+                promise(.failure(LibAukError.other(reason: "Couldn't decrypt data")))
+            }
+        }
+        .eraseToAnyPublisher()
+    }
+
+    func exportMnemonicWords() -> AnyPublisher<[String], Error> {
+        Future<[String], Error> { promise in
+            guard let identityData = self.keychain.getData(Constant.KeychainKey.ethIdentityKey, isSync: true),
+                  let keyIdentity = try? JSONDecoder().decode(KeyIdentity.self, from: identityData) else {
+                promise(.failure(LibAukError.emptyKey))
+                return
+            }
+
+            if let decryptedData = Encryption.decrypt(keyIdentity.words, keychain: self.keychain) {
+                if let words = String(data: decryptedData, encoding: .utf8),
+                   let mnemonic = try? BIP39Mnemonic(words: words) {
+                    promise(.success(mnemonic.words))
                 } else {
                     promise(.failure(LibAukError.other(reason: "Convert data error")))
                 }
