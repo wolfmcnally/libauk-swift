@@ -41,3 +41,24 @@ enum Encryption {
     }
     
 }
+
+extension Encryption {
+    static func encrypt(_ data: Data, keychain: AsyncKeychainProtocol = AsyncKeychain()) async throws -> Data {
+        guard let key = try await keychain.getData(Constant.KeychainKey.encryptionPrivateKey, isSync: true) else {
+            throw EncryptionError.noEncryptionKey
+        }
+        return try ChaChaPoly.seal(data, using: SymmetricKey(data: key)).combined
+    }
+    
+    static func decrypt(_ data: Data, keychain: AsyncKeychainProtocol = AsyncKeychain()) async throws -> Data {
+        guard let key = try await keychain.getData(Constant.KeychainKey.encryptionPrivateKey, isSync: true) else {
+            throw EncryptionError.noEncryptionKey
+        }
+        let box = try ChaChaPoly.SealedBox.init(combined: data)
+        return try ChaChaPoly.open(box, using: SymmetricKey(data: key))
+    }
+}
+
+public enum EncryptionError: Swift.Error {
+    case noEncryptionKey
+}

@@ -8,7 +8,7 @@
 import Foundation
 import Combine
 import LibWally
-import CryptoKit
+//import CryptoKit
 import Web3
 
 public protocol SecureStorageProtocol {

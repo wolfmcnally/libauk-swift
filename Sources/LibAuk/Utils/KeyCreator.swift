@@ -50,3 +50,24 @@ class KeyCreator {
         }
     }
 }
+
+extension KeyCreator {
+    
+    static func createMnemonicWords() -> String {
+        let bytesCount = 16
+        var randomBytes = [UInt8](repeating: 0, count: bytesCount)
+        let status = SecRandomCopyBytes(kSecRandomDefault, bytesCount, &randomBytes)
+        guard status == errSecSuccess else {
+            fatalError()
+        }
+        let hex = Data(randomBytes).hexString
+        let entropy = try! BIP39Mnemonic.Entropy(hex: hex)
+        let mnemonic = try! BIP39Mnemonic(entropy: entropy)
+        return mnemonic.words.joined(separator: " ")
+    }
+    
+    static func createEncryptedWords(keychain: AsyncKeychainProtocol = AsyncKeychain()) async throws -> Data {
+        let mnemonic = createMnemonicWords()
+        return try await Encryption.encrypt(mnemonic.utf8, keychain: keychain)
+    }
+}
