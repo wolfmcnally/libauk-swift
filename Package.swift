@@ -26,7 +26,6 @@ let package = Package(
             dependencies: [
                 .target(name: "LibWally"),
                 .product(name: "Web3", package: "Web3"),
-                .product(name: "Web3PromiseKit", package: "Web3"),
                 .product(name: "Web3ContractABI", package: "Web3"),
                 .product(name: "URKit", package: "URKit"),
             ]),
