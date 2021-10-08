@@ -5,7 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "LibAuk",
-    platforms: [.macOS(.v10_15), .iOS(.v13)],
+    platforms: [.macOS(.v11), .iOS(.v14)],
     products: [
         // Products define the executables and libraries a package produces, and make them visible to other packages.
         .library(
@@ -26,7 +26,6 @@ let package = Package(
             dependencies: [
                 .target(name: "LibWally"),
                 .product(name: "Web3", package: "Web3"),
-                .product(name: "Web3ContractABI", package: "Web3"),
                 .product(name: "URKit", package: "URKit"),
             ]),
         .testTarget(

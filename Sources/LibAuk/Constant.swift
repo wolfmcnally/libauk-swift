@@ -16,8 +16,7 @@ struct Constant {
             "persona.\(index)"
         }
 
-        static let encryptionPrivateKey = "encryptionPrivateKey"
-        static let ethIdentityKey = "ethIdentityKey"
+        static let seed = "seed"
         static let ethInfoKey = "ethInfo"
     }
 }

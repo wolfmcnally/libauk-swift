@@ -11,8 +11,3 @@ public struct KeyInfo: Codable {
     let fingerprint, ethAddress: String
     let creationDate: Date
 }
-
-struct KeyIdentity: Codable {
-    let words: Data
-    let passphrase: String
-}

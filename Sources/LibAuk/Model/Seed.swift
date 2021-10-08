@@ -11,7 +11,6 @@ import URKit
 public struct Seed: Codable {
     let data: Data
     let creationDate: Date?
-    var name: String
     
     func cbor(nameLimit: Int? = nil, noteLimit: Int? = nil) -> CBOR {
         var a: [OrderedMapEntry] = [
@@ -20,10 +19,6 @@ public struct Seed: Codable {
         
         if let creationDate = creationDate {
             a.append(.init(key: 2, value: CBOR.date(creationDate)))
-        }
-        
-        if !name.isEmpty {
-            a.append(.init(key: 3, value: CBOR.utf8String(name)))
         }
         
         return CBOR.orderedMap(a)

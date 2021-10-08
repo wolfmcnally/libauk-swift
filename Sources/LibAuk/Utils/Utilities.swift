@@ -48,4 +48,10 @@ extension Data {
         }
         self = data
     }
+    
+    static func secureRandom(_ len: Int) -> Data? {
+        var randomBytes = [UInt8](repeating: 0, count: len)
+        let status = SecRandomCopyBytes(kSecRandomDefault, len, &randomBytes)
+        return status == errSecSuccess ? Data(randomBytes) : nil
+    }
 }

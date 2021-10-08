@@ -25,18 +25,6 @@ public class LibAuk {
         self.keyChainGroup = keyChainGroup
     }
     
-    // Call this function on launching app
-    public func initEncryption() -> Bool {
-        let keychain = Keychain()
-        if keychain.getData(Constant.KeychainKey.encryptionPrivateKey) == nil {
-            let privateKey = Encryption.privateKey()
-            let success = keychain.set(privateKey, forKey: Constant.KeychainKey.encryptionPrivateKey)
-            return success
-        } else {
-            return true
-        }
-    }
-    
     public func storage(at index: Int) -> SecureStorageProtocol {
         let keychain = Keychain(prefix: Constant.KeychainKey.personaPrefix(at: index))
         return SecureStorage(keychain: keychain)

@@ -23,7 +23,6 @@ class SecureStorage_Tests: XCTestCase {
         keychain = KeychainMock()
         storage = SecureStorage(keychain: keychain)
         LibAuk.create(keyChainGroup: "com.bitmark.autonomy")
-        keychain.set(Encryption.privateKey(), forKey: Constant.KeychainKey.encryptionPrivateKey, isSync: true)
     }
 
     override func tearDownWithError() throws {
@@ -39,14 +38,38 @@ class SecureStorage_Tests: XCTestCase {
             .sink(receiveCompletion: { completion in
                 switch completion {
                 case .finished:
-                    XCTAssertNotNil(self.keychain.getData(Constant.KeychainKey.ethIdentityKey))
-                    XCTAssertTrue(self.keychain.getSync(Constant.KeychainKey.ethIdentityKey)!)
+                    XCTAssertNotNil(self.keychain.getData(Constant.KeychainKey.seed))
+                    XCTAssertTrue(self.keychain.getSync(Constant.KeychainKey.seed)!)
                     XCTAssertNotNil(self.keychain.getData(Constant.KeychainKey.ethInfoKey))
                     XCTAssertTrue(self.keychain.getSync(Constant.KeychainKey.ethInfoKey)!)
 
                     receivedExpectation.fulfill()
                 case .failure(let error):
-                    XCTFail("createKey failed \(error)")
+                    XCTFail("create key failed \(error)")
+                }
+
+            }, receiveValue: { _ in })
+            .store(in: &cancelBag)
+
+        waitForExpectations(timeout: 1, handler: nil)
+    }
+    
+    func testImportKeySuccessfully() throws {
+        let words: [String] = "daring mix cradle palm crowd sea observe whisper rubber either uncle oak".components(separatedBy: " ")
+        let receivedExpectation = expectation(description: "all values received")
+
+        storage.importKey(words: words, creationDate: Date(timeIntervalSince1970: 1628656699))
+            .sink(receiveCompletion: { completion in
+                switch completion {
+                case .finished:
+                    XCTAssertNotNil(self.keychain.getData(Constant.KeychainKey.seed))
+                    XCTAssertTrue(self.keychain.getSync(Constant.KeychainKey.seed)!)
+                    XCTAssertNotNil(self.keychain.getData(Constant.KeychainKey.ethInfoKey))
+                    XCTAssertTrue(self.keychain.getSync(Constant.KeychainKey.ethInfoKey)!)
+
+                    receivedExpectation.fulfill()
+                case .failure(let error):
+                    XCTFail("import key failed \(error)")
                 }
 
             }, receiveValue: { _ in })
@@ -82,31 +105,15 @@ class SecureStorage_Tests: XCTestCase {
     func testGetETHAddressSuccessfully() throws {
         let mnemomic = try BIP39Mnemonic(words: "daring mix cradle palm crowd sea observe whisper rubber either uncle oak")
         try storage.saveKeyInfo(mnemonic: mnemomic)
-
-        let receivedExpectation = expectation(description: "all values received")
         
-        storage.getETHAddress()
-            .sink(receiveCompletion: { completion in
-                switch completion {
-                case .finished:
-                    receivedExpectation.fulfill()
-                case .failure(let error):
-                    XCTFail("getAddress failed \(error)")
-                }
-
-            }, receiveValue: { address in
-                XCTAssertEqual(address, "0xA00cbE6a45102135A210F231901faA6c05D51465")
-            })
-            .store(in: &cancelBag)
-
-        waitForExpectations(timeout: 1, handler: nil)
+        XCTAssertEqual(storage.getETHAddress(), "0xA00cbE6a45102135A210F231901faA6c05D51465")
     }
     
     func testSignMessageSuccessfully() throws {
         let words = "daring mix cradle palm crowd sea observe whisper rubber either uncle oak"
-        let keyIdentity = KeyIdentity(words: Encryption.encrypt(words.utf8, keychain: keychain)!, passphrase: "")
-        let keyIdentityData = try JSONEncoder().encode(keyIdentity)
-        keychain.set(keyIdentityData, forKey: Constant.KeychainKey.ethIdentityKey, isSync: true)
+        let seed = Seed(data: Keys.entropy(words)!, creationDate: Date())
+        let seedData = try JSONEncoder().encode(seed)
+        keychain.set(seedData, forKey: Constant.KeychainKey.seed, isSync: true)
         
         let message = "hello"
         let receivedExpectation = expectation(description: "all values received")
@@ -132,9 +139,9 @@ class SecureStorage_Tests: XCTestCase {
     
     func testSignTransactionSuccessfully() throws {
         let words = "daring mix cradle palm crowd sea observe whisper rubber either uncle oak"
-        let keyIdentity = KeyIdentity(words: Encryption.encrypt(words.utf8, keychain: keychain)!, passphrase: "")
-        let keyIdentityData = try JSONEncoder().encode(keyIdentity)
-        keychain.set(keyIdentityData, forKey: Constant.KeychainKey.ethIdentityKey, isSync: true)
+        let seed = Seed(data: Keys.entropy(words)!, creationDate: Date())
+        let seedData = try JSONEncoder().encode(seed)
+        keychain.set(seedData, forKey: Constant.KeychainKey.seed, isSync: true)
         
         let tx = EthereumTransaction(
             nonce: 1,
@@ -169,9 +176,9 @@ class SecureStorage_Tests: XCTestCase {
     
     func testExportSeedSuccessfully() throws {
         let words = "daring mix cradle palm crowd sea observe whisper rubber either uncle oak"
-        let keyIdentity = KeyIdentity(words: Encryption.encrypt(words.utf8, keychain: keychain)!, passphrase: "")
-        let keyIdentityData = try JSONEncoder().encode(keyIdentity)
-        keychain.set(keyIdentityData, forKey: Constant.KeychainKey.ethIdentityKey, isSync: true)
+        let seed = Seed(data: Keys.entropy(words)!, creationDate: Date(timeIntervalSince1970: 1628656699))
+        let seedData = try JSONEncoder().encode(seed)
+        keychain.set(seedData, forKey: Constant.KeychainKey.seed, isSync: true)
         
         let keyInfo = KeyInfo(fingerprint: "0a3df912", ethAddress: "0xA00cbE6a45102135A210F231901faA6c05D51465", creationDate: Date(timeIntervalSince1970: 1628656699))
         let keyInfoData = try JSONEncoder().encode(keyInfo)
@@ -190,9 +197,8 @@ class SecureStorage_Tests: XCTestCase {
 
             }, receiveValue: { seed in
                 XCTAssertEqual(seed.data.hexString, "3791c0c7cfa34583e61fd4bcc8e3b24b")
-                XCTAssertEqual(seed.name, "0a3df912")
                 XCTAssertEqual(seed.creationDate, Date(timeIntervalSince1970: 1628656699))
-                XCTAssertEqual(seed.ur.string, "ur:crypto-seed/otadgdemmertsttkotfelsvacttyrfspvlprgraosecyhsbwghfraxisdyhseoieiyeseheyonbtqzhd")
+                XCTAssertEqual(seed.ur.string, "ur:crypto-seed/oeadgdemmertsttkotfelsvacttyrfspvlprgraosecyhsbwghfrjsdsvwuy")
             })
             .store(in: &cancelBag)
 
@@ -201,10 +207,10 @@ class SecureStorage_Tests: XCTestCase {
 
     func testExportMnemonicWordsSuccessfully() throws {
         let words = "daring mix cradle palm crowd sea observe whisper rubber either uncle oak"
-        let keyIdentity = KeyIdentity(words: Encryption.encrypt(words.utf8, keychain: keychain)!, passphrase: "")
-        let keyIdentityData = try JSONEncoder().encode(keyIdentity)
-        keychain.set(keyIdentityData, forKey: Constant.KeychainKey.ethIdentityKey, isSync: true)
-
+        let seed = Seed(data: Keys.entropy(words)!, creationDate: Date())
+        let seedData = try JSONEncoder().encode(seed)
+        keychain.set(seedData, forKey: Constant.KeychainKey.seed, isSync: true)
+        
         let receivedExpectation = expectation(description: "all values received")
 
         storage.exportMnemonicWords()
@@ -219,6 +225,36 @@ class SecureStorage_Tests: XCTestCase {
             }, receiveValue: { mnemonicWords in
                 XCTAssertEqual(mnemonicWords.joined(separator: " "), "daring mix cradle palm crowd sea observe whisper rubber either uncle oak")
             })
+            .store(in: &cancelBag)
+
+        waitForExpectations(timeout: 1, handler: nil)
+    }
+    
+    func testRemoveKeysSuccessfully() throws {
+        let words = "daring mix cradle palm crowd sea observe whisper rubber either uncle oak"
+        let seed = Seed(data: Keys.entropy(words)!, creationDate: Date(timeIntervalSince1970: 1628656699))
+        let seedData = try JSONEncoder().encode(seed)
+        keychain.set(seedData, forKey: Constant.KeychainKey.seed, isSync: true)
+        
+        let keyInfo = KeyInfo(fingerprint: "0a3df912", ethAddress: "0xA00cbE6a45102135A210F231901faA6c05D51465", creationDate: Date(timeIntervalSince1970: 1628656699))
+        let keyInfoData = try JSONEncoder().encode(keyInfo)
+        keychain.set(keyInfoData, forKey: Constant.KeychainKey.ethInfoKey, isSync: true)
+        
+        let receivedExpectation = expectation(description: "all values received")
+
+        storage.removeKeys()
+            .sink(receiveCompletion: { completion in
+                switch completion {
+                case .finished:
+                    XCTAssertNil(self.keychain.getData(Constant.KeychainKey.seed))
+                    XCTAssertNil(self.keychain.getData(Constant.KeychainKey.ethInfoKey))
+
+                    receivedExpectation.fulfill()
+                case .failure(let error):
+                    XCTFail("remove keys failed \(error)")
+                }
+
+            }, receiveValue: { _ in })
             .store(in: &cancelBag)
 
         waitForExpectations(timeout: 1, handler: nil)
