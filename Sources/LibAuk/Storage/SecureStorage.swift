@@ -11,8 +11,8 @@ import LibWally
 import Web3
 
 public protocol SecureStorageProtocol {
-    func createKey() -> AnyPublisher<Void, Error>
-    func importKey(words: [String], creationDate: Date?) -> AnyPublisher<Void, Error>
+    func createKey(name: String) -> AnyPublisher<Void, Error>
+    func importKey(words: [String], name: String, creationDate: Date?) -> AnyPublisher<Void, Error>
     func isWalletCreated() -> AnyPublisher<Bool, Error>
     func getETHAddress() -> String?
     func sign(message: Bytes) -> AnyPublisher<(v: UInt, r: Bytes, s: Bytes), Error>
@@ -30,19 +30,20 @@ class SecureStorage: SecureStorageProtocol {
         self.keychain = keychain
     }
     
-    func createKey() -> AnyPublisher<Void, Error> {
+    func createKey(name: String) -> AnyPublisher<Void, Error> {
         Future<Seed, Error> { promise in
             guard self.keychain.getData(Constant.KeychainKey.ethInfoKey, isSync: true) == nil else {
                 promise(.failure(LibAukError.keyCreationExistingError(key: "createETHKey")))
                 return
             }
             
-            guard let seed = KeyCreator.createSeed() else {
+            guard let entropy = KeyCreator.createEntropy() else {
                 promise(.failure(LibAukError.keyCreationError))
                 return
             }
             
             do {
+                let seed = Seed(data: entropy, name: name, creationDate: Date())
                 let seedData = try JSONEncoder().encode(seed)
                 
                 self.keychain.set(seedData, forKey: Constant.KeychainKey.seed, isSync: true)
@@ -60,7 +61,7 @@ class SecureStorage: SecureStorageProtocol {
         .eraseToAnyPublisher()
     }
     
-    func importKey(words: [String], creationDate: Date?) -> AnyPublisher<Void, Error> {
+    func importKey(words: [String], name: String, creationDate: Date?) -> AnyPublisher<Void, Error> {
         Future<Seed, Error> { promise in
             guard self.keychain.getData(Constant.KeychainKey.ethInfoKey, isSync: true) == nil else {
                 promise(.failure(LibAukError.keyCreationExistingError(key: "createETHKey")))
@@ -69,7 +70,7 @@ class SecureStorage: SecureStorageProtocol {
             
             if let entropy = Keys.entropy(words) {
                 do {
-                    let seed = Seed(data: entropy, creationDate: creationDate ?? Date())
+                    let seed = Seed(data: entropy, name: name, creationDate: creationDate ?? Date())
                     let seedData = try JSONEncoder().encode(seed)
                     
                     self.keychain.set(seedData, forKey: Constant.KeychainKey.seed, isSync: true)

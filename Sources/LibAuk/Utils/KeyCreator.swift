@@ -10,12 +10,12 @@ import LibWally
 
 class KeyCreator {
     
-    static func createSeed() -> Seed? {
+    static func createEntropy() -> Data? {
         guard let hex = Data.secureRandom(16)?.hexString,
               let entropy = try? BIP39Mnemonic.Entropy(hex: hex) else {
             return nil
         }
         
-        return Seed(data: entropy.data, creationDate: Date())
+        return entropy.data
     }
 }

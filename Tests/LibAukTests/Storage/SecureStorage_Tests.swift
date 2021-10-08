@@ -34,7 +34,7 @@ class SecureStorage_Tests: XCTestCase {
     func testCreateKeySuccessfully() throws {
         let receivedExpectation = expectation(description: "all values received")
 
-        storage.createKey()
+        storage.createKey(name: "account1")
             .sink(receiveCompletion: { completion in
                 switch completion {
                 case .finished:
@@ -58,7 +58,7 @@ class SecureStorage_Tests: XCTestCase {
         let words: [String] = "daring mix cradle palm crowd sea observe whisper rubber either uncle oak".components(separatedBy: " ")
         let receivedExpectation = expectation(description: "all values received")
 
-        storage.importKey(words: words, creationDate: Date(timeIntervalSince1970: 1628656699))
+        storage.importKey(words: words, name: "account1", creationDate: Date(timeIntervalSince1970: 1628656699))
             .sink(receiveCompletion: { completion in
                 switch completion {
                 case .finished:
@@ -111,7 +111,7 @@ class SecureStorage_Tests: XCTestCase {
     
     func testSignMessageSuccessfully() throws {
         let words = "daring mix cradle palm crowd sea observe whisper rubber either uncle oak"
-        let seed = Seed(data: Keys.entropy(words)!, creationDate: Date())
+        let seed = Seed(data: Keys.entropy(words)!, name: "account1", creationDate: Date())
         let seedData = try JSONEncoder().encode(seed)
         keychain.set(seedData, forKey: Constant.KeychainKey.seed, isSync: true)
         
@@ -139,7 +139,7 @@ class SecureStorage_Tests: XCTestCase {
     
     func testSignTransactionSuccessfully() throws {
         let words = "daring mix cradle palm crowd sea observe whisper rubber either uncle oak"
-        let seed = Seed(data: Keys.entropy(words)!, creationDate: Date())
+        let seed = Seed(data: Keys.entropy(words)!, name: "account1", creationDate: Date())
         let seedData = try JSONEncoder().encode(seed)
         keychain.set(seedData, forKey: Constant.KeychainKey.seed, isSync: true)
         
@@ -176,7 +176,7 @@ class SecureStorage_Tests: XCTestCase {
     
     func testExportSeedSuccessfully() throws {
         let words = "daring mix cradle palm crowd sea observe whisper rubber either uncle oak"
-        let seed = Seed(data: Keys.entropy(words)!, creationDate: Date(timeIntervalSince1970: 1628656699))
+        let seed = Seed(data: Keys.entropy(words)!, name: "account1", creationDate: Date(timeIntervalSince1970: 1628656699))
         let seedData = try JSONEncoder().encode(seed)
         keychain.set(seedData, forKey: Constant.KeychainKey.seed, isSync: true)
         
@@ -198,7 +198,7 @@ class SecureStorage_Tests: XCTestCase {
             }, receiveValue: { seed in
                 XCTAssertEqual(seed.data.hexString, "3791c0c7cfa34583e61fd4bcc8e3b24b")
                 XCTAssertEqual(seed.creationDate, Date(timeIntervalSince1970: 1628656699))
-                XCTAssertEqual(seed.ur.string, "ur:crypto-seed/oeadgdemmertsttkotfelsvacttyrfspvlprgraosecyhsbwghfrjsdsvwuy")
+                XCTAssertEqual(seed.ur.string, "ur:crypto-seed/otadgdemmertsttkotfelsvacttyrfspvlprgraosecyhsbwghfraxishsiaiajlkpjtjyehwscsfejs")
             })
             .store(in: &cancelBag)
 
@@ -207,7 +207,7 @@ class SecureStorage_Tests: XCTestCase {
 
     func testExportMnemonicWordsSuccessfully() throws {
         let words = "daring mix cradle palm crowd sea observe whisper rubber either uncle oak"
-        let seed = Seed(data: Keys.entropy(words)!, creationDate: Date())
+        let seed = Seed(data: Keys.entropy(words)!, name: "account1", creationDate: Date())
         let seedData = try JSONEncoder().encode(seed)
         keychain.set(seedData, forKey: Constant.KeychainKey.seed, isSync: true)
         
@@ -232,7 +232,7 @@ class SecureStorage_Tests: XCTestCase {
     
     func testRemoveKeysSuccessfully() throws {
         let words = "daring mix cradle palm crowd sea observe whisper rubber either uncle oak"
-        let seed = Seed(data: Keys.entropy(words)!, creationDate: Date(timeIntervalSince1970: 1628656699))
+        let seed = Seed(data: Keys.entropy(words)!, name: "account1", creationDate: Date(timeIntervalSince1970: 1628656699))
         let seedData = try JSONEncoder().encode(seed)
         keychain.set(seedData, forKey: Constant.KeychainKey.seed, isSync: true)
         
