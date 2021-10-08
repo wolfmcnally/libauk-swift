@@ -37,5 +37,8 @@ public class LibAuk {
         }
     }
     
-    public let storage: SecureStorageProtocol = SecureStorage()
+    public func storage(at index: Int) -> SecureStorageProtocol {
+        let keychain = Keychain(prefix: Constant.KeychainKey.personaPrefix(at: index))
+        return SecureStorage(keychain: keychain)
+    }
 }
