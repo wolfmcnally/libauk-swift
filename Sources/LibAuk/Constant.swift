@@ -12,8 +12,11 @@ struct Constant {
     static let ethDerivationPath = "m/44'/60'/0'/0/0"
     
     struct KeychainKey {
-        static let encryptionPrivateKey = "encryptionPrivateKey"
-        static let ethIdentityKey = "ethIdentityKey"
+        static func personaPrefix(at uuid: UUID) -> String {
+            "persona.\(uuid.uuidString)"
+        }
+
+        static let seed = "seed"
         static let ethInfoKey = "ethInfo"
     }
 }

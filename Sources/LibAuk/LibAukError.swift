@@ -10,6 +10,7 @@ import Foundation
 public enum LibAukError: Error {
     case initEncryptionError
     case keyCreationError
+    case invalidMnemonicError
     case emptyKey
     case keyCreationExistingError(key: String)
     case keyDerivationError
@@ -35,6 +36,8 @@ extension LibAukError: LocalizedError {
             return "init encryption error"
         case .keyCreationError:
             return "create key error"
+        case .invalidMnemonicError:
+            return "invalid mnemonic error"
         case .emptyKey:
             return "empty Key"
         case .keyCreationExistingError:

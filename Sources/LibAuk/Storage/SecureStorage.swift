@@ -8,17 +8,18 @@
 import Foundation
 import Combine
 import LibWally
-import CryptoKit
 import Web3
 
 public protocol SecureStorageProtocol {
-    func createKey() -> AnyPublisher<Void, Error>
+    func createKey(name: String) -> AnyPublisher<Void, Error>
+    func importKey(words: [String], name: String, creationDate: Date?) -> AnyPublisher<Void, Error>
     func isWalletCreated() -> AnyPublisher<Bool, Error>
-    func getETHAddress() -> AnyPublisher<String, Error>
+    func getETHAddress() -> String?
     func sign(message: Bytes) -> AnyPublisher<(v: UInt, r: Bytes, s: Bytes), Error>
     func signTransaction(transaction: EthereumTransaction, chainId: EthereumQuantity) -> AnyPublisher<EthereumSignedTransaction, Error>
     func exportSeed() -> AnyPublisher<Seed, Error>
     func exportMnemonicWords() -> AnyPublisher<[String], Error>
+    func removeKeys() -> AnyPublisher<Void, Error>
 }
 
 class SecureStorage: SecureStorageProtocol {
@@ -29,34 +30,54 @@ class SecureStorage: SecureStorageProtocol {
         self.keychain = keychain
     }
     
-    func createKey() -> AnyPublisher<Void, Error> {
-        Future<Data, Error> { promise in
+    func createKey(name: String) -> AnyPublisher<Void, Error> {
+        Future<Seed, Error> { promise in
             guard self.keychain.getData(Constant.KeychainKey.ethInfoKey, isSync: true) == nil else {
                 promise(.failure(LibAukError.keyCreationExistingError(key: "createETHKey")))
                 return
             }
             
-            KeyCreator.createEncryptedWords(keychain: self.keychain) { (encryptedWords, error) in
-                guard let encryptedWords = encryptedWords else {
-                    promise(.failure(LibAukError.keyCreationError))
-                    return
-                }
-                
-                let keyIdentity = KeyIdentity(words: encryptedWords, passphrase: "")
-                
-                do {
-                    let keyIdentityData = try JSONEncoder().encode(keyIdentity)
-                    self.keychain.set(keyIdentityData, forKey: Constant.KeychainKey.ethIdentityKey, isSync: true)
-                    promise(.success(encryptedWords))
-                } catch {
-                    promise(.failure(error))
-                }
+            guard let entropy = KeyCreator.createEntropy() else {
+                promise(.failure(LibAukError.keyCreationError))
+                return
+            }
+            
+            let seed = Seed(data: entropy, name: name, creationDate: Date())
+            let seedData = seed.urString.utf8
+
+            
+            self.keychain.set(seedData, forKey: Constant.KeychainKey.seed, isSync: true)
+            promise(.success(seed))
+        }
+        .compactMap { seed in
+            Keys.mnemonic(seed.data)
+        }
+        .tryMap { [unowned self] in
+            try self.saveKeyInfo(mnemonic: $0)
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    func importKey(words: [String], name: String, creationDate: Date?) -> AnyPublisher<Void, Error> {
+        Future<Seed, Error> { promise in
+            guard self.keychain.getData(Constant.KeychainKey.ethInfoKey, isSync: true) == nil else {
+                promise(.failure(LibAukError.keyCreationExistingError(key: "createETHKey")))
+                return
+            }
+            
+            if let entropy = Keys.entropy(words) {
+                let seed = Seed(data: entropy, name: name, creationDate: creationDate ?? Date())
+                let seedData = seed.urString.utf8
+
+                self.keychain.set(seedData, forKey: Constant.KeychainKey.seed, isSync: true)
+                promise(.success(seed))
+            } else {
+                promise(.failure(LibAukError.invalidMnemonicError))
             }
         }
-        .compactMap { [unowned self] encryptedWords in
-            Encryption.decrypt(encryptedWords, keychain: self.keychain)?.utf8
+        .compactMap { seed in
+            Keys.mnemonic(seed.data)
         }
-        .tryMap { try BIP39Mnemonic(words: $0) }
         .tryMap { [unowned self] in
             try self.saveKeyInfo(mnemonic: $0)
         }
@@ -76,67 +97,49 @@ class SecureStorage: SecureStorageProtocol {
         .eraseToAnyPublisher()
     }
     
-    func getETHAddress() -> AnyPublisher<String, Error> {
-        Future<String, Error> { promise in
-            guard let infoData = self.keychain.getData(Constant.KeychainKey.ethInfoKey, isSync: true),
-                  let keyInfo = try? JSONDecoder().decode(KeyInfo.self, from: infoData) else {
-                promise(.failure(LibAukError.emptyKey))
-                return
-            }
-            
-            promise(.success(keyInfo.ethAddress))
+    func getETHAddress() -> String? {
+        guard let infoData = self.keychain.getData(Constant.KeychainKey.ethInfoKey, isSync: true),
+              let keyInfo = try? JSONDecoder().decode(KeyInfo.self, from: infoData) else {
+            return nil
         }
-        .eraseToAnyPublisher()
+        return keyInfo.ethAddress
     }
     
     func sign(message: Bytes) -> AnyPublisher<(v: UInt, r: Bytes, s: Bytes), Error> {
-        Future<(String, String), Error> { promise in
-            guard let identityData = self.keychain.getData(Constant.KeychainKey.ethIdentityKey, isSync: true),
-                  let keyIdentity = try? JSONDecoder().decode(KeyIdentity.self, from: identityData) else {
+        Future<Seed, Error> { promise in
+            guard let seedUR = self.keychain.getData(Constant.KeychainKey.seed, isSync: true),
+                  let seed = try? Seed(urString: seedUR.utf8) else {
                 promise(.failure(LibAukError.emptyKey))
                 return
             }
             
-            if let decryptedData = Encryption.decrypt(keyIdentity.words, keychain: self.keychain) {
-                if let words = String(data: decryptedData, encoding: .utf8) {
-                    promise(.success((words, keyIdentity.passphrase)))
-                } else {
-                    promise(.failure(LibAukError.other(reason: "Convert data error")))
-                }
-            } else {
-                promise(.failure(LibAukError.other(reason: "Couldn't decrypt data")))
-            }
+            promise(.success(seed))
         }
-        .tryMap { [unowned self] (words, passphrase) in
-            let mnemonic = try BIP39Mnemonic(words: words)
-            let ethPrivateKey = try self.getEthereumPrivateKey(mnemonic: mnemonic, passphrase: passphrase)
-            
+        .compactMap {
+            Keys.mnemonic($0.data)
+        }
+        .tryMap { (mnemonic) in
+            let ethPrivateKey = try Keys.ethereumPrivateKey(mnemonic: mnemonic)
             return try ethPrivateKey.sign(message: message)
         }
         .eraseToAnyPublisher()
     }
     
     func signTransaction(transaction: EthereumTransaction, chainId: EthereumQuantity) -> AnyPublisher<EthereumSignedTransaction, Error> {
-        Future<(String, String), Error> { promise in
-            guard let identityData = self.keychain.getData(Constant.KeychainKey.ethIdentityKey, isSync: true),
-                  let keyIdentity = try? JSONDecoder().decode(KeyIdentity.self, from: identityData) else {
+        Future<Seed, Error> { promise in
+            guard let seedUR = self.keychain.getData(Constant.KeychainKey.seed, isSync: true),
+                  let seed = try? Seed(urString: seedUR.utf8) else {
                 promise(.failure(LibAukError.emptyKey))
                 return
             }
             
-            if let decryptedData = Encryption.decrypt(keyIdentity.words, keychain: self.keychain) {
-                if let words = String(data: decryptedData, encoding: .utf8) {
-                    promise(.success((words, keyIdentity.passphrase)))
-                } else {
-                    promise(.failure(LibAukError.other(reason: "Convert data error")))
-                }
-            } else {
-                promise(.failure(LibAukError.other(reason: "Couldn't decrypt data")))
-            }
+            promise(.success(seed))
         }
-        .tryMap { [unowned self] (words, passphrase) in
-            let mnemonic = try BIP39Mnemonic(words: words)
-            let ethPrivateKey = try self.getEthereumPrivateKey(mnemonic: mnemonic, passphrase: passphrase)
+        .compactMap {
+            Keys.mnemonic($0.data)
+        }
+        .tryMap { mnemonic in
+            let ethPrivateKey = try Keys.ethereumPrivateKey(mnemonic: mnemonic)
             
             return try transaction.sign(with: ethPrivateKey, chainId: chainId)
         }
@@ -145,71 +148,51 @@ class SecureStorage: SecureStorageProtocol {
     
     func exportSeed() -> AnyPublisher<Seed, Error> {
         Future<Seed, Error> { promise in
-            guard let identityData = self.keychain.getData(Constant.KeychainKey.ethIdentityKey, isSync: true),
-                  let keyIdentity = try? JSONDecoder().decode(KeyIdentity.self, from: identityData),
-                  let infoData = self.keychain.getData(Constant.KeychainKey.ethInfoKey, isSync: true),
-                  let keyInfo = try? JSONDecoder().decode(KeyInfo.self, from: infoData) else {
+            guard let seedUR = self.keychain.getData(Constant.KeychainKey.seed, isSync: true),
+                  let seed = try? Seed(urString: seedUR.utf8) else {
                 promise(.failure(LibAukError.emptyKey))
                 return
             }
             
-            if let decryptedData = Encryption.decrypt(keyIdentity.words, keychain: self.keychain) {
-                if let words = String(data: decryptedData, encoding: .utf8),
-                   let mnemonic = try? BIP39Mnemonic(words: words) {
-                    promise(.success(Seed(data: mnemonic.entropy.data, creationDate: keyInfo.creationDate, name: keyInfo.fingerprint)))
-                } else {
-                    promise(.failure(LibAukError.other(reason: "Convert data error")))
-                }
-            } else {
-                promise(.failure(LibAukError.other(reason: "Couldn't decrypt data")))
-            }
+            promise(.success(seed))
         }
         .eraseToAnyPublisher()
     }
 
     func exportMnemonicWords() -> AnyPublisher<[String], Error> {
-        Future<[String], Error> { promise in
-            guard let identityData = self.keychain.getData(Constant.KeychainKey.ethIdentityKey, isSync: true),
-                  let keyIdentity = try? JSONDecoder().decode(KeyIdentity.self, from: identityData) else {
+        self.exportSeed()
+            .compactMap { seed in
+                Keys.mnemonic(seed.data)
+            }
+            .map { $0.words }
+            .eraseToAnyPublisher()
+    }
+    
+    func removeKeys() -> AnyPublisher<Void, Error> {
+        Future<Void, Error> { promise in
+            guard self.keychain.getData(Constant.KeychainKey.seed, isSync: true) != nil,
+                  self.keychain.getData(Constant.KeychainKey.ethInfoKey, isSync: true) != nil else {
                 promise(.failure(LibAukError.emptyKey))
                 return
             }
+            
+            self.keychain.remove(key: Constant.KeychainKey.seed, isSync: true)
+            self.keychain.remove(key: Constant.KeychainKey.ethInfoKey, isSync: true)
 
-            if let decryptedData = Encryption.decrypt(keyIdentity.words, keychain: self.keychain) {
-                if let words = String(data: decryptedData, encoding: .utf8),
-                   let mnemonic = try? BIP39Mnemonic(words: words) {
-                    promise(.success(mnemonic.words))
-                } else {
-                    promise(.failure(LibAukError.other(reason: "Convert data error")))
-                }
-            } else {
-                promise(.failure(LibAukError.other(reason: "Couldn't decrypt data")))
-            }
+            promise(.success(()))
         }
         .eraseToAnyPublisher()
     }
+
     
     func saveKeyInfo(mnemonic: BIP39Mnemonic) throws {
-        let masterKey = try HDKey(seed: mnemonic.seedHex(passphrase: ""))
-        let ethPrivateKey = try getEthereumPrivateKey(mnemonic: mnemonic)
+        let ethPrivateKey = try Keys.ethereumPrivateKey(mnemonic: mnemonic)
         
-        let keyInfo = KeyInfo(fingerprint: masterKey.fingerprint.hexString,
+        let keyInfo = KeyInfo(fingerprint: Keys.fingerprint(mnemonic: mnemonic) ?? "",
                               ethAddress: ethPrivateKey.address.hex(eip55: true),
                               creationDate: Date())
 
         let keyInfoData = try JSONEncoder().encode(keyInfo)
         keychain.set(keyInfoData, forKey: Constant.KeychainKey.ethInfoKey, isSync: true)
-    }
-    
-    func getEthereumPrivateKey(mnemonic: BIP39Mnemonic, passphrase: String = "") throws -> EthereumPrivateKey {
-        let masterKey = try HDKey(seed: mnemonic.seedHex(passphrase: ""))
-        let derivationPath = try BIP32Path(string: Constant.ethDerivationPath)
-        let account = try masterKey.derive(using: derivationPath)
-        
-        guard let privateKey = account.privKey?.data.bytes else {
-            throw LibAukError.keyDerivationError
-        }
-        
-        return try EthereumPrivateKey(privateKey)
     }
 }
