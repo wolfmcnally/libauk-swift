@@ -42,15 +42,12 @@ class SecureStorage: SecureStorageProtocol {
                 return
             }
             
-            do {
-                let seed = Seed(data: entropy, name: name, creationDate: Date())
-                let seedData = try JSONEncoder().encode(seed)
-                
-                self.keychain.set(seedData, forKey: Constant.KeychainKey.seed, isSync: true)
-                promise(.success(seed))
-            } catch {
-                promise(.failure(error))
-            }
+            let seed = Seed(data: entropy, name: name, creationDate: Date())
+            let seedData = seed.urString.utf8
+
+            
+            self.keychain.set(seedData, forKey: Constant.KeychainKey.seed, isSync: true)
+            promise(.success(seed))
         }
         .compactMap { seed in
             Keys.mnemonic(seed.data)
@@ -69,15 +66,11 @@ class SecureStorage: SecureStorageProtocol {
             }
             
             if let entropy = Keys.entropy(words) {
-                do {
-                    let seed = Seed(data: entropy, name: name, creationDate: creationDate ?? Date())
-                    let seedData = try JSONEncoder().encode(seed)
-                    
-                    self.keychain.set(seedData, forKey: Constant.KeychainKey.seed, isSync: true)
-                    promise(.success(seed))
-                } catch {
-                    promise(.failure(error))
-                }
+                let seed = Seed(data: entropy, name: name, creationDate: creationDate ?? Date())
+                let seedData = seed.urString.utf8
+
+                self.keychain.set(seedData, forKey: Constant.KeychainKey.seed, isSync: true)
+                promise(.success(seed))
             } else {
                 promise(.failure(LibAukError.invalidMnemonicError))
             }
@@ -114,8 +107,8 @@ class SecureStorage: SecureStorageProtocol {
     
     func sign(message: Bytes) -> AnyPublisher<(v: UInt, r: Bytes, s: Bytes), Error> {
         Future<Seed, Error> { promise in
-            guard let seedData = self.keychain.getData(Constant.KeychainKey.seed, isSync: true),
-                  let seed = try? JSONDecoder().decode(Seed.self, from: seedData) else {
+            guard let seedUR = self.keychain.getData(Constant.KeychainKey.seed, isSync: true),
+                  let seed = try? Seed(urString: seedUR.utf8) else {
                 promise(.failure(LibAukError.emptyKey))
                 return
             }
@@ -134,8 +127,8 @@ class SecureStorage: SecureStorageProtocol {
     
     func signTransaction(transaction: EthereumTransaction, chainId: EthereumQuantity) -> AnyPublisher<EthereumSignedTransaction, Error> {
         Future<Seed, Error> { promise in
-            guard let seedData = self.keychain.getData(Constant.KeychainKey.seed, isSync: true),
-                  let seed = try? JSONDecoder().decode(Seed.self, from: seedData) else {
+            guard let seedUR = self.keychain.getData(Constant.KeychainKey.seed, isSync: true),
+                  let seed = try? Seed(urString: seedUR.utf8) else {
                 promise(.failure(LibAukError.emptyKey))
                 return
             }
@@ -155,8 +148,8 @@ class SecureStorage: SecureStorageProtocol {
     
     func exportSeed() -> AnyPublisher<Seed, Error> {
         Future<Seed, Error> { promise in
-            guard let seedData = self.keychain.getData(Constant.KeychainKey.seed, isSync: true),
-                  let seed = try? JSONDecoder().decode(Seed.self, from: seedData) else {
+            guard let seedUR = self.keychain.getData(Constant.KeychainKey.seed, isSync: true),
+                  let seed = try? Seed(urString: seedUR.utf8) else {
                 promise(.failure(LibAukError.emptyKey))
                 return
             }

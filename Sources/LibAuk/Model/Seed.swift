@@ -8,10 +8,16 @@
 import Foundation
 import URKit
 
-public struct Seed: Codable {
+public class Seed: Codable {
     let data: Data
     let name: String
     let creationDate: Date?
+    
+    init(data: Data, name: String, creationDate: Date? = nil) {
+        self.data = data
+        self.name = name
+        self.creationDate = creationDate
+    }
     
     func cbor(nameLimit: Int? = nil, noteLimit: Int? = nil) -> CBOR {
         var a: [OrderedMapEntry] = [
@@ -31,5 +37,60 @@ public struct Seed: Codable {
     
     var ur: UR {
         try! UR(type: "crypto-seed", cbor: cbor())
+    }
+    
+    var urString: String {
+        UREncoder.encode(ur)
+    }
+    
+    convenience init(urString: String) throws {
+        let ur = try URDecoder.decode(urString)
+        try self.init(ur: ur)
+    }
+    
+    convenience init(ur: UR) throws {
+        guard ur.type == "crypto-seed" else {
+            throw LibAukError.other(reason: "Unexpected UR type.")
+        }
+        try self.init(cborData: ur.cbor)
+    }
+
+    convenience init(cborData: Data) throws {
+        guard let cbor = try CBOR.decode(cborData.bytes) else {
+            throw LibAukError.other(reason: "ur:crypto-seed: Invalid CBOR.")
+        }
+        try self.init(cbor: cbor)
+    }
+    
+    convenience init(cbor: CBOR) throws {
+        guard case let CBOR.map(pairs) = cbor else {
+            throw LibAukError.other(reason: "ur:crypto-seed: CBOR doesn't contain a map.")
+        }
+        guard let dataItem = pairs[1], case let CBOR.byteString(bytes) = dataItem else {
+            throw LibAukError.other(reason: "ur:crypto-seed: CBOR doesn't contain data field.")
+        }
+        let data = Data(bytes)
+        
+        let creationDate: Date?
+        if let dateItem = pairs[2] {
+            guard case let CBOR.date(d) = dateItem else {
+                throw LibAukError.other(reason: "ur:crypto-seed: CreationDate field doesn't contain a date.")
+            }
+            creationDate = d
+        } else {
+            creationDate = nil
+        }
+        
+        let name: String
+        if let nameItem = pairs[3] {
+            guard case let CBOR.utf8String(s) = nameItem else {
+                throw LibAukError.other(reason: "ur:crypto-seed: Name field doesn't contain string.")
+            }
+            name = s
+        } else {
+            name = "Untitled"
+        }
+        
+        self.init(data: data, name: name, creationDate: creationDate)
     }
 }

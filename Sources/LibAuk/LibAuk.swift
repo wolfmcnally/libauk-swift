@@ -25,8 +25,8 @@ public class LibAuk {
         self.keyChainGroup = keyChainGroup
     }
     
-    public func storage(at index: Int) -> SecureStorageProtocol {
-        let keychain = Keychain(prefix: Constant.KeychainKey.personaPrefix(at: index))
+    public func storage(for uuid: UUID) -> SecureStorageProtocol {
+        let keychain = Keychain(prefix: Constant.KeychainKey.personaPrefix(at: uuid))
         return SecureStorage(keychain: keychain)
     }
 }

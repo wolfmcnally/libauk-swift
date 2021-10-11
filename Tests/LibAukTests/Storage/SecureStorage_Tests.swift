@@ -10,6 +10,7 @@ import XCTest
 import LibWally
 import Combine
 import Web3
+import URKit
 @testable import LibAuk
 
 class SecureStorage_Tests: XCTestCase {
@@ -112,7 +113,7 @@ class SecureStorage_Tests: XCTestCase {
     func testSignMessageSuccessfully() throws {
         let words = "daring mix cradle palm crowd sea observe whisper rubber either uncle oak"
         let seed = Seed(data: Keys.entropy(words)!, name: "account1", creationDate: Date())
-        let seedData = try JSONEncoder().encode(seed)
+        let seedData = seed.urString.utf8
         keychain.set(seedData, forKey: Constant.KeychainKey.seed, isSync: true)
         
         let message = "hello"
@@ -140,7 +141,7 @@ class SecureStorage_Tests: XCTestCase {
     func testSignTransactionSuccessfully() throws {
         let words = "daring mix cradle palm crowd sea observe whisper rubber either uncle oak"
         let seed = Seed(data: Keys.entropy(words)!, name: "account1", creationDate: Date())
-        let seedData = try JSONEncoder().encode(seed)
+        let seedData = seed.urString.utf8
         keychain.set(seedData, forKey: Constant.KeychainKey.seed, isSync: true)
         
         let tx = EthereumTransaction(
@@ -177,7 +178,7 @@ class SecureStorage_Tests: XCTestCase {
     func testExportSeedSuccessfully() throws {
         let words = "daring mix cradle palm crowd sea observe whisper rubber either uncle oak"
         let seed = Seed(data: Keys.entropy(words)!, name: "account1", creationDate: Date(timeIntervalSince1970: 1628656699))
-        let seedData = try JSONEncoder().encode(seed)
+        let seedData = seed.urString.utf8
         keychain.set(seedData, forKey: Constant.KeychainKey.seed, isSync: true)
         
         let keyInfo = KeyInfo(fingerprint: "0a3df912", ethAddress: "0xA00cbE6a45102135A210F231901faA6c05D51465", creationDate: Date(timeIntervalSince1970: 1628656699))
@@ -208,7 +209,7 @@ class SecureStorage_Tests: XCTestCase {
     func testExportMnemonicWordsSuccessfully() throws {
         let words = "daring mix cradle palm crowd sea observe whisper rubber either uncle oak"
         let seed = Seed(data: Keys.entropy(words)!, name: "account1", creationDate: Date())
-        let seedData = try JSONEncoder().encode(seed)
+        let seedData = seed.urString.utf8
         keychain.set(seedData, forKey: Constant.KeychainKey.seed, isSync: true)
         
         let receivedExpectation = expectation(description: "all values received")
@@ -233,7 +234,7 @@ class SecureStorage_Tests: XCTestCase {
     func testRemoveKeysSuccessfully() throws {
         let words = "daring mix cradle palm crowd sea observe whisper rubber either uncle oak"
         let seed = Seed(data: Keys.entropy(words)!, name: "account1", creationDate: Date(timeIntervalSince1970: 1628656699))
-        let seedData = try JSONEncoder().encode(seed)
+        let seedData = seed.urString.utf8
         keychain.set(seedData, forKey: Constant.KeychainKey.seed, isSync: true)
         
         let keyInfo = KeyInfo(fingerprint: "0a3df912", ethAddress: "0xA00cbE6a45102135A210F231901faA6c05D51465", creationDate: Date(timeIntervalSince1970: 1628656699))
