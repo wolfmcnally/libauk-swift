@@ -14,6 +14,7 @@ public protocol SecureStorageProtocol {
     func createKey(name: String) -> AnyPublisher<Void, Error>
     func importKey(words: [String], name: String, creationDate: Date?) -> AnyPublisher<Void, Error>
     func isWalletCreated() -> AnyPublisher<Bool, Error>
+    func getName() -> String?
     func getETHAddress() -> String?
     func sign(message: Bytes) -> AnyPublisher<(v: UInt, r: Bytes, s: Bytes), Error>
     func signTransaction(transaction: EthereumTransaction, chainId: EthereumQuantity) -> AnyPublisher<EthereumSignedTransaction, Error>
@@ -95,6 +96,15 @@ class SecureStorage: SecureStorageProtocol {
             promise(.success(true))
         }
         .eraseToAnyPublisher()
+    }
+    
+    func getName() -> String? {
+        guard let seedUR = self.keychain.getData(Constant.KeychainKey.seed, isSync: true),
+              let seed = try? Seed(urString: seedUR.utf8) else {
+            return ""
+        }
+        
+        return seed.name
     }
     
     func getETHAddress() -> String? {

@@ -9,9 +9,9 @@ import Foundation
 import URKit
 
 public class Seed: Codable {
-    let data: Data
-    let name: String
-    let creationDate: Date?
+    public let data: Data
+    public let name: String
+    public let creationDate: Date?
     
     init(data: Data, name: String, creationDate: Date? = nil) {
         self.data = data
@@ -35,11 +35,11 @@ public class Seed: Codable {
         return CBOR.orderedMap(a)
     }
     
-    var ur: UR {
+    public var ur: UR {
         try! UR(type: "crypto-seed", cbor: cbor())
     }
     
-    var urString: String {
+    public var urString: String {
         UREncoder.encode(ur)
     }
     
