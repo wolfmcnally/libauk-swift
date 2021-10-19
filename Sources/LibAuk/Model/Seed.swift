@@ -88,7 +88,7 @@ public class Seed: Codable {
             }
             name = s
         } else {
-            name = "Untitled"
+            name = ""
         }
         
         self.init(data: data, name: name, creationDate: creationDate)

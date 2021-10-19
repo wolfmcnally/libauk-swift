@@ -107,6 +107,28 @@ class SecureStorage: SecureStorageProtocol {
         return seed.name
     }
     
+    func updateName(name: String) -> AnyPublisher<Void, Error> {
+        Future<Seed, Error> { promise in
+            guard let seedUR = self.keychain.getData(Constant.KeychainKey.seed, isSync: true),
+                  let seed = try? Seed(urString: seedUR.utf8) else {
+                promise(.failure(LibAukError.emptyKey))
+                return
+            }
+            
+            promise(.success(seed))
+        }
+        .map {
+            Seed(data: $0.data, name: name, creationDate: $0.creationDate)
+        }
+        .map { seed in
+            let seedData = seed.urString.utf8
+
+            self.keychain.set(seedData, forKey: Constant.KeychainKey.seed, isSync: true)
+            return ()
+        }
+        .eraseToAnyPublisher()
+    }
+    
     func getETHAddress() -> String? {
         guard let infoData = self.keychain.getData(Constant.KeychainKey.ethInfoKey, isSync: true),
               let keyInfo = try? JSONDecoder().decode(KeyInfo.self, from: infoData) else {

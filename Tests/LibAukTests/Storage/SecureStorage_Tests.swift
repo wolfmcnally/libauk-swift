@@ -102,6 +102,31 @@ class SecureStorage_Tests: XCTestCase {
         waitForExpectations(timeout: 1, handler: nil)
     }
     
+    func testUpdateNameSuccessfully() throws {
+        let words = "daring mix cradle palm crowd sea observe whisper rubber either uncle oak"
+        let seed = Seed(data: Keys.entropy(words)!, name: "account1", creationDate: Date())
+        let seedData = seed.urString.utf8
+        keychain.set(seedData, forKey: Constant.KeychainKey.seed, isSync: true)
+        
+        let receivedExpectation = expectation(description: "all values received")
+
+        storage.updateName(name: "account2")
+            .sink(receiveCompletion: { completion in
+                switch completion {
+                case .finished:
+                    let seed = try! Seed(urString: self.keychain.getData(Constant.KeychainKey.seed)!.utf8)
+                    XCTAssertEqual(seed.name, "account2")
+                    receivedExpectation.fulfill()
+                case .failure(let error):
+                    XCTFail("update name failed \(error)")
+                }
+
+            }, receiveValue: { _ in })
+            .store(in: &cancelBag)
+
+        waitForExpectations(timeout: 1, handler: nil)
+    }
+    
     func testGetNameSuccessfully() throws {
         let words = "daring mix cradle palm crowd sea observe whisper rubber either uncle oak"
         let seed = Seed(data: Keys.entropy(words)!, name: "account1", creationDate: Date())
