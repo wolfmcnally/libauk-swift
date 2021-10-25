@@ -9,6 +9,7 @@ import Foundation
 import Combine
 import LibWally
 import Web3
+import KukaiCoreSwift
 
 public protocol SecureStorageProtocol {
     func createKey(name: String) -> AnyPublisher<Void, Error>
@@ -19,6 +20,7 @@ public protocol SecureStorageProtocol {
     func getETHAddress() -> String?
     func sign(message: Bytes) -> AnyPublisher<(v: UInt, r: Bytes, s: Bytes), Error>
     func signTransaction(transaction: EthereumTransaction, chainId: EthereumQuantity) -> AnyPublisher<EthereumSignedTransaction, Error>
+    func getTezosWallet() -> AnyPublisher<Wallet, Error>
     func exportSeed() -> AnyPublisher<Seed, Error>
     func exportMnemonicWords() -> AnyPublisher<[String], Error>
     func removeKeys() -> AnyPublisher<Void, Error>
@@ -175,6 +177,25 @@ class SecureStorage: SecureStorageProtocol {
             let ethPrivateKey = try Keys.ethereumPrivateKey(mnemonic: mnemonic)
             
             return try transaction.sign(with: ethPrivateKey, chainId: chainId)
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    func getTezosWallet() -> AnyPublisher<Wallet, Error> {
+        Future<Seed, Error> { promise in
+            guard let seedUR = self.keychain.getData(Constant.KeychainKey.seed, isSync: true),
+                  let seed = try? Seed(urString: seedUR.utf8) else {
+                promise(.failure(LibAukError.emptyKey))
+                return
+            }
+            
+            promise(.success(seed))
+        }
+        .compactMap {
+            Keys.mnemonic($0.data)
+        }
+        .compactMap {
+            Keys.tezosWallet(mnemonic: $0)
         }
         .eraseToAnyPublisher()
     }
