@@ -8,6 +8,7 @@
 import Foundation
 import LibWally
 import Web3
+import KukaiCoreSwift
 
 class Keys {
     
@@ -57,5 +58,9 @@ class Keys {
         }
         
         return try EthereumPrivateKey(privateKey)
+    }
+    
+    static func tezosWallet(mnemonic: BIP39Mnemonic, passphrase: String = "") -> HDWallet? {
+        HDWallet.create(withMnemonic: mnemonic.words.joined(separator: " "), passphrase: passphrase)
     }
 }

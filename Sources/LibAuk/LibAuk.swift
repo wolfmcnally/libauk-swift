@@ -5,7 +5,7 @@
 //  Created by Ho Hien on 8/9/21.
 //
 
-import LibWally
+import Foundation
 
 public class LibAuk {
     

@@ -14,6 +14,6 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Build
-      run: swift build -v
+      run: xcodebuild -scheme LibAuk build -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 12'
     - name: Run tests
-      run: swift test -v
+      run: xcodebuild -scheme LibAuk test -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 12'

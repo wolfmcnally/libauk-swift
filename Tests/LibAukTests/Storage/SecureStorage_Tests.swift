@@ -208,6 +208,35 @@ class SecureStorage_Tests: XCTestCase {
         waitForExpectations(timeout: 1, handler: nil)
     }
     
+    func testGetTezosWalletSuccessfully() throws {
+        let words = "daring mix cradle palm crowd sea observe whisper rubber either uncle oak"
+        let seed = Seed(data: Keys.entropy(words)!, name: "account1", creationDate: Date(timeIntervalSince1970: 1628656699))
+        let seedData = seed.urString.utf8
+        keychain.set(seedData, forKey: Constant.KeychainKey.seed, isSync: true)
+        
+        let keyInfo = KeyInfo(fingerprint: "0a3df912", ethAddress: "0xA00cbE6a45102135A210F231901faA6c05D51465", creationDate: Date(timeIntervalSince1970: 1628656699))
+        let keyInfoData = try JSONEncoder().encode(keyInfo)
+        keychain.set(keyInfoData, forKey: Constant.KeychainKey.ethInfoKey, isSync: true)
+        
+        let receivedExpectation = expectation(description: "all values received")
+        
+        storage.getTezosWallet()
+            .sink(receiveCompletion: { completion in
+                switch completion {
+                case .finished:
+                    receivedExpectation.fulfill()
+                case .failure(let error):
+                    XCTFail("exportSeed failed \(error)")
+                }
+
+            }, receiveValue: { wallet in
+                XCTAssertEqual(wallet.address, "tz1TK8o3WKrPLKGwMgsdn3duPtT9tJcdh3FQ")
+            })
+            .store(in: &cancelBag)
+
+        waitForExpectations(timeout: 1, handler: nil)
+    }
+    
     func testExportSeedSuccessfully() throws {
         let words = "daring mix cradle palm crowd sea observe whisper rubber either uncle oak"
         let seed = Seed(data: Keys.entropy(words)!, name: "account1", creationDate: Date(timeIntervalSince1970: 1628656699))
